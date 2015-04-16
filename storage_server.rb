@@ -46,18 +46,12 @@ class StorageServer
             Thread.current.thread_variable_set(:busy, 0) #Set thread as not busy
             x.close
 
-          elsif requests[0] == 'CREATE'
-            filename = requests[1]
-            f = File.open(filename, "w")
-            f.close
-            puts "File created."
-            Thread.current.thread_variable_set(:busy, 0) #Set thread as not busy
-            x.close
-
           elsif requests[0] == "CLOSE"
             filename = requests[1]
             f = File.open(filename, "w")
-            f.write(x.read)
+            while data = x.gets
+              f.write(data)
+            end
             f.close
             puts "File saved."
             Thread.current.thread_variable_set(:busy, 0) #Set thread as not busy

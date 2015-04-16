@@ -7,7 +7,7 @@ class DirectoryServer
   end
 
   def DirectoryServer.createFile(filename, port, hostname, filesHash, lockHash, fileTokens)
-    file = "/Users/Carl-Mac/Desktop/Ds/#{port}/#{filename}"
+    file = "#{port}/#{filename}"
     s = TCPSocket.open(hostname, port)
     message = "CREATE #{file}"
     puts "Message sent: " + message
@@ -22,7 +22,6 @@ class DirectoryServer
 
   #-------------------------------------------Main starts here!--------------------------------------------
 
-  fileLoc = '/Users/Carl-Mac/Desktop/Ds/'
   hostname = 'localhost'
   listenPort = 7000 #ARGV[0]  #Takes in parameter from the bash script/shell
   server = TCPServer.open(listenPort)
@@ -54,10 +53,10 @@ class DirectoryServer
           puts req
           request = req.split(' ')
 
-          if req[0, 4] == 'HELO'
+          if request[0] == 'HELO'
             _, remote_port, _, remote_ip = x.peeraddr #sock_domain, remote_port, remote_hostname, remote_ip = socket.peeraddr
             x.puts req + "IP: #{remote_ip}\nPort: #{remote_port}"
-          elsif req == "KILL_SERVICE\n"
+          elsif request[0] == "KILL_SERVICE\n"
             x.puts('ABORT')
             abort('Goodbye')    #shut down server
 
@@ -75,8 +74,12 @@ class DirectoryServer
               #port = filesHash[filename][rand(0..1)]    #storage servers are ports 8001, 8002, 8003 - pick one at random
               port = filesHash[filename][0]
               lockHash[filename] = true     #lock the file so cannot be used
-              loc = fileLoc + "#{port}/" + filename      #file path name
-              response = "PORT #{port} FILENAME #{loc}"       #response client message
+              token = rand(1000000)
+              while fileTokens[token]
+                token = rand(1000000)
+              end
+              loc = "#{port}/" + filename      #file path name
+              response = "PORT #{port} FILENAME #{loc} TOKEN #{token}"       #response client message
               x.puts response                                           #tell client what port to connect to and the pathname
               puts "Responded: #{response}"
               x.close
@@ -92,9 +95,8 @@ class DirectoryServer
           elsif request[0] == 'CLOSE'
             filename = request[1]
             begin
-              if(lockHash[filename] == false)    #if file is in use - break
-                puts "This file is currently in use. Please try again later."
-                x.puts "NACK"
+              if(!fileHash[filename])    #if file doesn't exist
+
                 Thread.current.thread_variable_set(:busy, 0) #Set thread as not busy
                 x.close
                 break

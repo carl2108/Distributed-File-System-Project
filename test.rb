@@ -28,10 +28,11 @@ class Test
   directoryPort = 7000
 
   loop{
-    s = TCPSocket.open(hostname, directoryPort)
+    s = TCPSocket.open(hostname, storagePort)
     print "> "
     x = gets.chomp
     s.puts x
+    s.close
   }
 
 end
