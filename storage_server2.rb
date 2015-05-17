@@ -4,7 +4,7 @@ class StorageServer
 
   hostname = 'localhost'
   #listenPort = ARGV[0]  #Takes in parameter from the bash script/shell - #8001, 8002, 8003 should be used
-  listenPort = 8001
+  listenPort = 8002
   directoryPort = 7000
   #fileLoc = '/Users/Carl-Mac/Desktop/Ds/' + "#{listenPort}"
   server = TCPServer.open(listenPort)
@@ -62,7 +62,6 @@ class StorageServer
                 newRepPort = rand(1..3) + 8000
               end
               s = TCPSocket.open(hostname, newRepPort)
-              puts "MESSAGE: REPLICATE #{filename}"
               s.puts "REPLICATE #{filename}"
               fileLoc = "#{listenPort}/#{filename}"
               if File.exist?(fileLoc)

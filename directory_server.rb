@@ -2,22 +2,23 @@ class DirectoryServer
   require 'thread'
   require 'socket'
 
-  def initHash(filesHash)
+  def DirectoryServer.initHash(filesHash, lockHash)
+    for dir in ['8001', '8002', '8003']
+      print "Scanning #{dir}."
+      while Dir.pwd != '/Users/Carl-Mac/RubymineProjects/Distributed File System Project'   #go to root directory
+        Dir.chdir '..'
+      end
 
-  end
-
-  def DirectoryServer.createFile(filename, port, hostname, filesHash, lockHash, fileTokens)
-    file = "#{port}/#{filename}"
-    s = TCPSocket.open(hostname, port)
-    message = "CREATE #{file}"
-    puts "Message sent: " + message
-    filesHash[filename] = []
-    filesHash[filename] << port
-    lockHash[filename] = []
-    lockHash[filename] << false
-    fileTokens[filename] = []
-    s.puts message
-    s.close
+      Dir.chdir dir     #go to directory to be scanned
+      files = Dir.glob("*.txt")
+      puts " Files #{files.length}."
+      for f in files
+        if !filesHash[f]      #if there isn't a hash table entry for this file make one
+          filesHash[f] = []
+        end
+        filesHash[f] << dir
+      end
+    end
   end
 
   #-------------------------------------------Main starts here!--------------------------------------------
@@ -29,7 +30,7 @@ class DirectoryServer
   filesHash = {}
   lockHash = {}
   fileTokens = {}
-  #initHash(filesHash)      #scan existing storage servers and compile hash of files and locations
+  initHash(filesHash, lockHash)      #scan existing storage servers and compile hash of files and locations
   puts "listening... Port: #{listenPort}"
 
 
@@ -62,67 +63,77 @@ class DirectoryServer
 
           elsif request[0] == 'OPEN'
             filename = request[1]
-            begin
-              if(lockHash[filename] == true)    #if file is in use - break
-                puts "This file is currently in use. Please try again later."
-                x.puts "This file is currently in use. Please try again later."
-                Thread.current.thread_variable_set(:busy, 0) #Set thread as not busy
-                x.close
-                break
-              end
-
-              #port = filesHash[filename][rand(0..1)]    #storage servers are ports 8001, 8002, 8003 - pick one at random
-              port = filesHash[filename][0]
-              lockHash[filename] = true     #lock the file so cannot be used
-              token = rand(1000000)
-              while fileTokens[token]
-                token = rand(1000000)
-              end
-              loc = "#{port}/" + filename      #file path name
-              response = "PORT #{port} FILENAME #{loc} TOKEN #{token}"       #response client message
-              x.puts response                                           #tell client what port to connect to and the pathname
-              puts "Responded: #{response}"
-              x.close
-              Thread.current.thread_variable_set(:busy, 0) #Set thread as not busy
-
-            rescue      #file doesn't exist - can't open
+            if !filesHash[filename]   #does the file exist?
               puts "File doesn't exist."
               x.puts "File doesn't exist."
-              Thread.current.thread_variable_set(:busy, 0) #Set thread as not busy
-              x.close
+            else
+              if lockHash[filename]   #is it already locked?
+                puts "File is in use."
+                x.puts "File is in use."
+              else
+                #port = filesHash[filename][rand(0..1)]    #storage servers are ports 8001, 8002, 8003 - pick one at random
+                port = filesHash[filename][0]
+                lockHash[filename] = true     #lock the file so cannot be used
+                token = rand(1000000)
+                while fileTokens[token]
+                  token = rand(1000000)
+                end
+                response = "PORT #{port} FILENAME #{port}/#{filename} TOKEN #{token}"     #response client message
+                puts response
+                x.puts response         #tell client what port to connect to, the pathname and token num
+              end
             end
 
           elsif request[0] == 'CLOSE'
             filename = request[1]
-            begin
-              if(!fileHash[filename])    #if file doesn't exist
-
-                Thread.current.thread_variable_set(:busy, 0) #Set thread as not busy
-                x.close
-                break
+            if !filesHash[filename]     #if file doesn't exist
+              #port = filesHash[filename][0]
+              port = rand(1..3) + 8000
+              #port = 8001
+              filesHash[filename] = []
+              filesHash[filename] << port
+              lockHash[filename] = false     #unlock the file
+              token = rand(1000000)
+              while fileTokens[token]
+                token = rand(1000000)
               end
-
-              #port = filesHash[filename][rand(0..1)]    #storage servers are ports 8001, 8002, 8003 - pick one at random
-              port = filesHash[filename][0]
-              lockHash[filename] = true     #lock the file so cannot be used
-              loc = fileLoc + "#{port}/" + filename      #file path name
-              response = "PORT #{port} FILENAME #{loc}"       #response client message
-              x.puts response                                           #tell client what port to connect to and the pathname
-              puts "Responded: #{response}"
-              x.close
-              Thread.current.thread_variable_set(:busy, 0) #Set thread as not busy
-
-            rescue      #file doesn't exist
-              puts "File doesn't exist. Creating."
-              x.puts "File created."
-              #port = rand(1..3) + 8000
-              port = 8001
-              createFile(filename, port, hostname, filesHash, lockHash, fileTokens)
-              puts "Created file: " + filename
-              Thread.current.thread_variable_set(:busy, 0) #Set thread as not busy
-              x.close
+              response = "PORT #{port} false FILENAME #{filename} TOKEN #{token}"     #response client message
+              puts response
+              x.puts response
+            else
+              if !lockHash[filename]     #if the file isn't currently open
+                puts "Please open file first."
+                x.puts "Please open file first."
+              else
+                port = filesHash[filename][0]
+                if !filesHash[filename][1]
+                  repPort = false
+                else
+                  repPort = filesHash[filename][1]
+                end
+                x.puts "PORT #{port} #{repPort} FILENAME #{filename}"
+              end
             end
+
+          elsif request[0] == "REPLICATE"
+            filename = request[1]
+            port = request[3]
+            if !filesHash[filename].include? port
+              filesHash[filename] << port
+            end
+            puts "Replicated #{filename} on server #{port}"
+
+          elsif request[0] == "LIST"
+            x.puts filesHash.keys
+            puts "Sent file list."
+
+          else
+            puts "Invalid command."
+            x.puts "Invalid command."
           end
+          x.close
+          Thread.current.thread_variable_set(:busy, 0) #Set thread as not busy
+          puts "Done!"
         end
       }
     end

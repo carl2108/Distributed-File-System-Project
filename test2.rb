@@ -1,13 +1,35 @@
 class Test2
 
-  fileTok = {}
-  fileTok["A"] = []
-  fileTok["A"] << 4
-  puts fileTok["A"]
-  #fileTok.delete("A")
-  if fileTok["A"]
+  require 'timeout'
+ #x = Dir.entries('8001')
+ #puts x
+
+  # puts Dir.pwd
+  #
+  # Dir.chdir '8001'
+  # x = Dir.glob("*.txt")
+  # puts x
+  #
+  # Dir.chdir '..'
+  # Dir.chdir '8002'
+  # y = Dir.glob("*.txt")
+  # puts y
+
+  # dir = Dir.pwd
+  # x = '/Users/Carl-Mac/RubymineProjects/Distributed File System Project'
+  #
+  # if x == dir
+  #   puts true
+  # else
+  #   puts false
+  # end
+
+  files = {}
+
+  files['test1'] = []
+
+  if files['test']
     puts true
-  else
-    puts false
   end
+
 end
